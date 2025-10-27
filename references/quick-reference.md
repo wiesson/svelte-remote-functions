@@ -1,5 +1,30 @@
 # Quick Reference
 
+## ⚠️ Critical Syntax Rules
+
+**Query function signatures:**
+- ✅ **No arguments:** `query(async () => { })`
+- ✅ **With arguments:** `query(z.schema(), async (arg) => { })`
+- ❌ **NEVER:** `query(async ({}) => { })` ← Invalid syntax!
+- ❌ **NEVER:** `query(async (arg) => { })` ← Missing validation!
+- ❌ **NEVER:** `query(z.schema(), async (arg, event) => { })` ← Use getRequestEvent()!
+
+**When calling:**
+- ✅ No args: `getPosts()`
+- ✅ With args: `getPost('my-slug')`
+- ❌ Missing args: `getPost()` ← Will fail!
+
+**Accessing request context:**
+- ✅ Import: `import { getRequestEvent } from '$app/server'`
+- ✅ Use: `const { cookies, locals } = getRequestEvent()`
+- ❌ Don't use `event` as a function parameter
+
+**Always:**
+- Use Zod schema when query has arguments
+- Omit parameters entirely (not `{}`) when no arguments
+- Pass all required arguments when calling
+- Use `getRequestEvent()` to access cookies/locals, never `event` parameter
+
 ## File Naming
 
 Remote functions must be in `.remote.js` or `.remote.ts` files.
@@ -29,6 +54,21 @@ export const getAuthor = query.batch(
     return authorIds.map(id => authors.find(a => a.id === id));
   }
 );
+
+// With request context
+import { getRequestEvent } from '$app/server';
+
+export const getCurrentUser = query(async () => {
+  const { cookies } = getRequestEvent();
+  const sessionId = cookies.get('session');
+  return await db.getUserBySession(sessionId);
+});
+
+export const getProtectedData = query(z.string(), async (id) => {
+  const { locals } = getRequestEvent();
+  if (!locals.user) throw error(401, 'Unauthorized');
+  return await db.getData(id, locals.user.id);
+});
 ```
 
 ```svelte

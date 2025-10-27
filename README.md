@@ -64,10 +64,62 @@ svelte-remote-functions/
 ### Boosts Code Correctness
 
 1. **Complete patterns** - Not just syntax, but full working examples
-2. **Common pitfalls highlighted** - "Commands cannot be called during render"
-3. **Best practices front-and-center** - Single-flight mutations, validation requirements
-4. **Real workflow examples** - Create → Redirect + Refresh, Delete → Optimistic Remove
-5. **Validation emphasis** - Every example uses Zod properly
+2. **Common mistakes section** - Explicit anti-patterns with ❌ DON'T and ✅ DO examples
+3. **Critical syntax rules** - Prevents errors like `query(async ({})` or missing validation
+4. **Best practices front-and-center** - Single-flight mutations, validation requirements
+5. **Real workflow examples** - Create → Redirect + Refresh, Delete → Optimistic Remove
+6. **Validation emphasis** - Every example uses Zod properly
+
+## Common Mistakes to Avoid
+
+The skill includes a dedicated "Common Mistakes" section highlighting:
+
+**❌ Query without validation schema**
+```typescript
+// DON'T
+export const getPost = query(async (slug) => { ... });
+
+// DO
+export const getPost = query(z.string(), async (slug) => { ... });
+```
+
+**❌ Invalid empty object syntax**
+```typescript
+// DON'T
+export const getPosts = query(async ({}) => { ... });
+
+// DO
+export const getPosts = query(async () => { ... });
+```
+
+**❌ Missing arguments when calling**
+```typescript
+// DON'T
+const post = getPost(); // Missing slug!
+
+// DO
+const post = getPost(params.slug);
+```
+
+**❌ Using event as parameter**
+```typescript
+// DON'T
+export const getUser = query(z.string(), async (id, event) => {
+  const session = event.cookies.get('session');
+  ...
+});
+
+// DO
+import { getRequestEvent } from '$app/server';
+
+export const getUser = query(z.string(), async (id) => {
+  const { cookies } = getRequestEvent();
+  const session = cookies.get('session');
+  ...
+});
+```
+
+See SKILL.md for complete anti-pattern documentation.
 
 ## Coverage
 

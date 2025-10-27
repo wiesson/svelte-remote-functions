@@ -270,6 +270,119 @@ For complete implementation details, read the reference files:
 3. Call `submit().updates()` for targeted refresh
 4. Handle success/error states
 
+## Common Mistakes to Avoid
+
+### ❌ Query Without Validation Schema
+
+**WRONG - Missing Zod schema:**
+```typescript
+// ❌ DON'T: Arguments without validation
+export const getPost = query(async (slug) => {
+  return await db.getPost(slug);
+});
+```
+
+**CORRECT:**
+```typescript
+// ✅ DO: Always validate arguments
+import { z } from 'zod';
+
+export const getPost = query(z.string(), async (slug) => {
+  return await db.getPost(slug);
+});
+```
+
+### ❌ Invalid Empty Object Syntax
+
+**WRONG - Empty object parameter:**
+```typescript
+// ❌ DON'T: Use empty object syntax
+export const getPosts = query(async ({}) => {
+  return await db.getAllPosts();
+});
+```
+
+**CORRECT:**
+```typescript
+// ✅ DO: Omit parameters entirely
+export const getPosts = query(async () => {
+  return await db.getAllPosts();
+});
+```
+
+### ❌ Missing Arguments When Calling
+
+**WRONG - Forgetting required arguments:**
+```typescript
+// ❌ DON'T: Call without required arguments
+const post = getPost(); // Missing slug parameter!
+```
+
+**CORRECT:**
+```typescript
+// ✅ DO: Always pass required arguments
+const post = getPost(params.slug);
+```
+
+### ❌ Using Event as Parameter
+
+**WRONG - Event as second parameter:**
+```typescript
+// ❌ DON'T: Use event as function parameter
+export const getUser = query(z.string(), async (id, event) => {
+  const session = event.cookies.get('session');
+  return await db.getUser(id);
+});
+
+// ❌ Also wrong for commands
+export const updateUser = command(z.string(), async (id, event) => {
+  const userId = event.locals.user.id;
+  await db.update(id, userId);
+});
+```
+
+**CORRECT:**
+```typescript
+// ✅ DO: Use getRequestEvent()
+import { getRequestEvent } from '$app/server';
+
+export const getUser = query(z.string(), async (id) => {
+  const { cookies } = getRequestEvent();
+  const session = cookies.get('session');
+  return await db.getUser(id);
+});
+
+// ✅ For commands too
+export const updateUser = command(z.string(), async (id) => {
+  const { locals } = getRequestEvent();
+  const userId = locals.user.id;
+  await db.update(id, userId);
+});
+```
+
+### ⚠️ Critical Syntax Rules
+
+**Query function signatures:**
+- ✅ **No arguments:** `query(async () => { })`
+- ✅ **With arguments:** `query(z.schema(), async (arg) => { })`
+- ❌ **NEVER use:** `query(async ({}) => { })`
+- ❌ **NEVER skip validation:** `query(async (arg) => { })` without schema
+- ❌ **NEVER use event parameter:** `query(z.schema(), async (arg, event) => { })`
+
+**When calling remote functions:**
+- ✅ **No args:** `getPosts()`
+- ✅ **With args:** `getPost('slug-value')`
+- ❌ **NEVER forget** required arguments
+
+**Form and Command:**
+- Forms can omit schema if using `FormData`
+- Commands should always validate arguments with Zod
+- Both follow same validation patterns as queries
+
+**Accessing request context:**
+- ✅ **DO:** `import { getRequestEvent } from '$app/server'` then use `getRequestEvent()`
+- ❌ **DON'T:** Use `event` as a function parameter
+
 ## Validation
 
 Always validate arguments using Standard Schema (Zod recommended):
